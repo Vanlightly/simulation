@@ -1,0 +1,95 @@
+---
+title: "RabbitMQ Cooperative Balancing"
+output: html_notebook
+---
+
+```{r include=FALSE}
+options(scipen=999)
+library(ggplot2)
+library(dplyr)
+library(tibble)
+library(ggthemes)
+library(cowplot)
+library(stringr)
+
+
+title <- "Python simulation"
+py_results_df <- read.csv(file = "python-sim/py_results_no_cache.csv", sep=",")
+py_pct_rounds_df <- read.csv(file = "python-sim/agg_Rounds__py_results_no_cache.csv", sep=",")
+tla_results_df <- read.csv(file = "tla-sim/tla_results_q10_a2-15.csv", sep=",")
+tla_pct_rounds_df <- read.csv(file = "tla-sim/agg_Rounds__tla_results_q10_a2-15.csv", sep=",")
+
+algos <- c('SEQ_SUB__ACTIVE_REL','RAND_SUB__ACTIVE_REL','SEQ_SUB__NONACTIVE_REL','RAND_SUB__NONACTIVE_REL')
+scenario <- 'START_UP'
+
+
+plot_data <- function(results_df, pct_rounds_df, sim_type) {
+  workload_df = filter(results_df, Algorithm %in% algos & Scenario == scenario)
+  pct_rounds_workload_df = filter(pct_rounds_df, Algorithm %in% algos & Scenario == scenario)
+  #pct_queue_rel_workload_df = filter(pct_queue_rel_df, Algorithm %in% algos & Scenario == scenario)
+  
+  grouped_df = group_by(workload_df, Algorithm, AppCount)
+  summary_df <- summarise(grouped_df,
+                          mean_rel = mean(Rounds),
+                          var_rel = var(Rounds),
+                          sd_rel = sd(Rounds))
+    
+  ggplot(summary_df, 
+         aes(x = AppCount, y = mean_rel, fill = AppCount)) +
+    geom_bar(stat = "identity") +
+    geom_errorbar(aes(ymin=mean_rel-sd_rel, ymax=mean_rel+sd_rel), width=.2,
+                  position=position_dodge(.9)) +
+    theme_minimal() +
+    labs(
+      x = "Number of apps",
+      y = "Queue releases",
+      title = sim_type,
+      subtitle = "Queues: 10"
+    ) +
+    scale_x_continuous(breaks=seq(2, 16, 2)) + 
+    scale_fill_continuous(low="#FFD662FF", high="#00539CFF", name = "App Count") +
+    facet_wrap(~ Algorithm, nrow=2)
+
+  ggplot(pct_rounds_workload_df, aes(x=AppCount)) + 
+    geom_line(aes(y=min_val, color="#E69F00")) +
+    geom_line(aes(y=percentile_50, color="#56B4E9")) +
+    geom_line(aes(y=percentile_75, color="#009E73")) +
+    # geom_line(aes(y=percentile_90, color="#F0E442")) +
+    geom_line(aes(y=percentile_95, color="#0072B2")) +
+    geom_line(aes(y=percentile_99, color="#D55E00")) +
+    geom_line(aes(y=max_val, color="#CC79A7")) +
+    labs(title = paste(sim_type, "- Rounds with percentiles"),
+      subtitle = "Queues: 10",
+      y = "Number of rounds",
+      x = "Number of apps") +  # title and caption
+    scale_x_continuous(breaks=seq(2, 16, 2)) + 
+    scale_color_identity(guide='legend',
+                         name='Percentiles',
+                         breaks=c("#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7"),
+                         labels=c('Min', 'p50', 'p75', 'p90', 'p95', 'p99', 'Max')) +
+    theme_bw() +
+    facet_wrap(~ Algorithm, nrow=2)
+  #+ lims(y=c(0,200))
+
+  ggplot(results_df, 
+         aes(AppCount)) +   
+    geom_histogram(aes(fill=Algorithm),
+                    bins=29,
+                    col="black",
+                    size=.1) +   # change number of bins
+   labs(title="Number of simulations per application count and algorithm")
+}
+```
+
+
+# Python Simulation
+
+```{r}
+plot_data(py_results_df, py_pct_rounds_df, "Python simulation")
+```
+
+# TLA+ Simulation
+
+```{r}
+plot_data(tla_results_df, tla_pct_rounds_df, "TLA+ simulation")
+```
