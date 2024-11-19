@@ -46,3 +46,60 @@ python3 queues.py
 ## Visualizing results
 
 This I'll leave to the reader. Out of custom and laziness I tend to stick to ggplot2 with R. But there are plenty of Python data viz libraries. See the R notebook `queues.Rmd`.
+
+
+## An example that shows why so many queue releases can be needed
+
+Apps a1-a6, with queues q1-q5.
+
+Worst case initial state, for a1 to die.
+
+```
+q1: [a1, a2, a3, a4, a5, a6]
+q2: [a2, a3, a4, a5, a1, a6]
+q3: [a3, a4, a5, a1, a2, a6]
+q4: [a4, a5, a1, a2, a3, a6]
+q5: [a5, a2, a3, a4, a5, a6]
+```
+
+`a1` dies, so `a2` has too many active queues.
+
+```
+q1: [a2, a3, a4, a5, a6, a1]
+q2: [a2, a3, a4, a5, a1, a6]
+q3: [a3, a4, a5, a1, a2, a6]
+q4: [a4, a5, a1, a2, a3, a6]
+q5: [a5, a2, a3, a4, a5, a6]
+```
+
+`a2` releases 1 queue. Now a3 has too many.
+
+```
+q1: [a2, a3, a4, a5, a6, a1]
+q2: [a3, a4, a5, a1, a6, a2]
+q3: [a3, a4, a5, a1, a2, a6]
+q4: [a4, a5, a1, a2, a3, a6]
+q5: [a5, a2, a3, a4, a5, a6]
+```
+
+`a3` releases 1 queue. Now a4 has too many.
+
+```
+q1: [a2, a3, a4, a5, a6, a1]
+q2: [a3, a4, a5, a1, a6, a2]
+q3: [a4, a5, a1, a2, a6, a3]
+q4: [a4, a5, a1, a2, a3, a6]
+q5: [a5, a2, a3, a4, a5, a6]
+```
+
+`a4` releases 1 queue. Now a5 has too many.
+
+```
+q1: [a2, a3, a4, a5, a6, a1]
+q2: [a3, a4, a5, a1, a6, a2]
+q3: [a4, a5, a1, a2, a6, a3]
+q4: [a5, a1, a2, a3, a6, a4]
+q5: [a5, a2, a3, a4, a5, a6]
+```
+
+And so on. `a6` that needs just one active queue, is still far towards the back of all subscriber queues.
